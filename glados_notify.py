@@ -23,11 +23,9 @@ logger = logging.getLogger(__name__)
 
 # ---------------------- 环境变量 ----------------------
 ENV_PUSH_KEY = "PUSHDEER_SENDKEY"
-ENV_COOKIES = "GLADOS_COOKIES"
 ENV_EXCHANGE_PLAN = "GLADOS_EXCHANGE_PLAN"
 ENV_TG_BOT_TOKEN = "TG_BOT_TOKEN"
 ENV_TG_CHAT_ID = "TG_CHAT_ID"
-ENV_EMAILS = "GLADOS_EMAILS"  # 多账号 EMAIL
 
 # ---------------------- API 配置 ----------------------
 CHECKIN_URL = "https://glados.cloud/api/user/checkin"
@@ -47,26 +45,31 @@ HEADERS_TEMPLATE = {
 EXCHANGE_POINTS = {"plan100": 100, "plan200": 200, "plan500": 500} 
 
 # ---------------------- 配置加载 ----------------------
-def load_config() -> Tuple[str, List[str], str, str, str, List[str]]:
+def load_config() -> Tuple[str, str, str, str, List[Tuple[str,str]]]:
     push_key = os.environ.get(ENV_PUSH_KEY, "")
-    cookies_env = os.environ.get(ENV_COOKIES, "")
     exchange_plan = os.environ.get(ENV_EXCHANGE_PLAN, "plan500")
     tg_token = os.environ.get(ENV_TG_BOT_TOKEN, "")
     tg_chat_id = os.environ.get(ENV_TG_CHAT_ID, "")
-    emails_env = os.environ.get(ENV_EMAILS, "")
 
-    cookies_list = [c.strip() for c in cookies_env.split('&') if c.strip()]
-    emails_list = [e.strip() for e in emails_env.split('&') if e.strip()]
+    accounts = []
+    # 自动按序号读取 GLADOS_EMAILS_1 / GLADOS_COOKIES_1 等
+    for i in range(1, 21):  # 最多支持 20 个账号，可根据需要改
+        email = os.environ.get(f"GLADOS_EMAILS_{i}")
+        cookie = os.environ.get(f"GLADOS_COOKIES_{i}")
+        if email and cookie:
+            accounts.append((email, cookie))
+        else:
+            break
 
-    if emails_list and len(emails_list) != len(cookies_list):
-        logger.warning("EMAIL 数量与 Cookie 数量不一致，可能导致显示错误")
+    if not accounts:
+        logger.warning("未配置任何账号，退出程序。")
 
     if exchange_plan not in EXCHANGE_POINTS:
         logger.warning(f"兑换计划 {exchange_plan} 无效，使用默认 plan500")
         exchange_plan = "plan500"
 
-    logger.info(f"共加载 {len(cookies_list)} 个 Cookie 和 {len(emails_list)} 个 EMAIL。")
-    return push_key, cookies_list, exchange_plan, tg_token, tg_chat_id, emails_list
+    logger.info(f"共加载 {len(accounts)} 个账号")
+    return push_key, exchange_plan, tg_token, tg_chat_id, accounts
 
 # ---------------------- HTTP 请求 ----------------------
 def make_request(url: str, method: str, headers: Dict[str, str], data: Optional[Dict] = None, cookies: str = "") -> Optional[requests.Response]:
@@ -188,16 +191,12 @@ def send_telegram(title:str, content:str, bot_token:str, chat_id:str):
 
 # ---------------------- 主函数 ----------------------
 def main():
-    push_key, cookies_list, exchange_plan, tg_token, tg_chat_id, emails_list = load_config()
+    push_key, exchange_plan, tg_token, tg_chat_id, accounts = load_config()
     results = []
 
-    for idx, cookie in enumerate(cookies_list,1):
-        email = emails_list[idx-1] if idx-1 < len(emails_list) else f"账号{idx}"
+    for idx, (email, cookie) in enumerate(accounts,1):
         logger.info(f"处理账号 {idx} ({email}) ...")
-        
-        # 只有第一个账号执行兑换
         do_exchange = True if idx == 1 else False
-        
         status, points, days, points_total, exchange = checkin_and_process(cookie, exchange_plan, do_exchange)
         results.append({
             'email': email,
