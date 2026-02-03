@@ -8,7 +8,7 @@ on:
       - 'README.md'
       - 'imgs/'
   schedule:
-    - cron: '10 16 * * *'  # 每天 04:00 和 10:00 UTC
+    - cron: '0 4,10 * * *'
   watch:
     types: started
 
@@ -16,43 +16,51 @@ jobs:
   build:
     name: glados checkin
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.8]
 
     steps:
-    # 1️⃣ Checkout 仓库
     - uses: actions/checkout@v4
 
-    # 2️⃣ Setup Python
-    - name: set up python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+    - name: set up python
+      uses: actions/setup-python@v4
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: '3.8'
 
-    # 3️⃣ 安装依赖
+    # 安装依赖
     - name: install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install requests pypushdeer
 
-    # 4️⃣ 执行签到脚本
-    - name: running checkin
+    # 运行脚本
+    - name: running glados checkin
       run: |
         python glados_notify.py
       env:
+        # ========= 推送 =========
         PUSHDEER_SENDKEY: ${{ secrets.PUSHDEER_SENDKEY }}
-        GLADOS_COOKIES: ${{ secrets.GLADOS_COOKIES }}
-        GLADOS_EXCHANGE_PLAN: ${{ secrets.GLADOS_EXCHANGE_PLAN }}
         TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
         TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
-        GLADOS_EMAILS: ${{ secrets.GLADOS_EMAILS }}
 
-    # 5️⃣ 保持 workflow 活跃
+        # ========= 兑换配置（只对第一个账号生效） =========
+        GLADOS_EXCHANGE_PLAN: plan500
+
+        # ========= GLaDOS 多账号 =========
+        GLADOS_EMAILS_1: ${{ secrets.GLADOS_EMAILS_1 }}
+        GLADOS_COOKIES_1: ${{ secrets.GLADOS_COOKIES_1 }}
+
+        GLADOS_EMAILS_2: ${{ secrets.GLADOS_EMAILS_2 }}
+        GLADOS_COOKIES_2: ${{ secrets.GLADOS_COOKIES_2 }}
+
+        GLADOS_EMAILS_3: ${{ secrets.GLADOS_EMAILS_3 }}
+        GLADOS_COOKIES_3: ${{ secrets.GLADOS_COOKIES_3 }}
+
+        # 需要几个账号就继续往下加
+
+    # 防止仓库休眠
     - name: keep alive
       uses: liskin/gh-workflow-keepalive@v1
 
-    # 6️⃣ 删除旧 workflow
+    # 清理历史 workflow
     - name: delete workflow runs
       uses: Mattraks/delete-workflow-runs@v2
       with:
