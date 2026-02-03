@@ -43,6 +43,7 @@ jobs:
 
         # ========= 兑换配置（只对第一个账号生效） =========
         GLADOS_EXCHANGE_PLAN: plan500
+        GLADOS_ENABLE_EXCHANGE: "false" 
 
         # ========= GLaDOS 多账号 =========
         GLADOS_EMAILS_1: ${{ secrets.GLADOS_EMAILS_1 }}
