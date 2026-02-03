@@ -56,9 +56,7 @@ jobs:
 
         # 需要几个账号就继续往下加
 
-    # 防止仓库休眠
-    - name: keep alive
-      uses: liskin/gh-workflow-keepalive@v1
+
 
     # 清理历史 workflow
     - name: delete workflow runs
