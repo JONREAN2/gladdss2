@@ -3,22 +3,20 @@ import json
 import os
 import logging
 import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import List, Dict
 from pypushdeer import PushDeer
 
-# ================== 时间（北京时间日志） ==================
+# ================== 北京时间日志 ==================
 def beijing_time_converter(timestamp):
     utc_dt = datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
-    beijing_tz = datetime.timezone(datetime.timedelta(hours=8))
-    beijing_dt = utc_dt.astimezone(beijing_tz)
-    return beijing_dt.timetuple()
+    bj_tz = datetime.timezone(datetime.timedelta(hours=8))
+    return utc_dt.astimezone(bj_tz).timetuple()
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-root_logger = logging.getLogger()
-for handler in root_logger.handlers:
-    if hasattr(handler, 'formatter') and handler.formatter:
-        handler.formatter.converter = beijing_time_converter
-
+logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)s - %(levelname)s - %(message)s")
+for h in logging.getLogger().handlers:
+    if h.formatter:
+        h.formatter.converter = beijing_time_converter
 logger = logging.getLogger(__name__)
 
 # ================== ENV ==================
@@ -36,16 +34,20 @@ EXCHANGE_URL = "https://glados.cloud/api/user/exchange"
 
 CHECKIN_DATA = {"token": "glados.cloud"}
 
-HEADERS_TEMPLATE = {
-    'referer': 'https://glados.cloud/console/checkin',
-    'origin': "https://glados.cloud",
-    'user-agent': "Mozilla/5.0",
-    'content-type': 'application/json;charset=UTF-8'
+HEADERS = {
+    "origin": "https://glados.cloud",
+    "referer": "https://glados.cloud/console/checkin",
+    "user-agent": "Mozilla/5.0",
+    "content-type": "application/json;charset=UTF-8"
 }
 
-EXCHANGE_POINTS = {"plan100": 100, "plan200": 200, "plan500": 500}
+EXCHANGE_POINTS = {
+    "plan100": 100,
+    "plan200": 200,
+    "plan500": 500
+}
 
-# ================== 读取账号（_1 _2 _3） ==================
+# ================== 读取账号 ==================
 def load_accounts() -> List[Dict[str, str]]:
     accounts = []
     idx = 1
@@ -54,7 +56,10 @@ def load_accounts() -> List[Dict[str, str]]:
         cookie = os.environ.get(f"GLADOS_COOKIES_{idx}")
         if not email or not cookie:
             break
-        accounts.append({"email": email.strip(), "cookie": cookie.strip()})
+        accounts.append({
+            "email": email.strip(),
+            "cookie": cookie.strip()
+        })
         idx += 1
     return accounts
 
@@ -70,14 +75,14 @@ def load_config():
 
     accounts = load_accounts()
 
-    logger.info(f"账号数量: {len(accounts)}")
+    logger.info(f"加载账号数量: {len(accounts)}")
     logger.info(f"兑换开关: {'开启' if enable_exchange else '关闭'}")
 
     return push_key, exchange_plan, tg_token, tg_chat_id, accounts, enable_exchange
 
 # ================== HTTP ==================
-def make_request(url, method, headers, data=None, cookie=""):
-    h = headers.copy()
+def request(url, method="GET", data=None, cookie=""):
+    h = HEADERS.copy()
     h["cookie"] = cookie
     try:
         if method == "POST":
@@ -86,49 +91,51 @@ def make_request(url, method, headers, data=None, cookie=""):
             r = requests.get(url, headers=h)
         return r if r.ok else None
     except Exception as e:
-        logger.error(f"请求失败: {e}")
+        logger.error(f"请求异常: {e}")
         return None
 
 # ================== 单账号处理 ==================
-def process_account(account, exchange_plan, do_exchange):
-    cookie = account["cookie"]
+def process_account(acc, exchange_plan, do_exchange):
+    cookie = acc["cookie"]
 
-    status, points, days, total_points, exchange = "签到失败", "0", "-", "-", "未执行兑换"
+    status = "签到失败"
+    points = "0"
+    days = "-"
+    total = "-"
+    exchange = "未执行兑换"
 
-    r = make_request(CHECKIN_URL, "POST", HEADERS_TEMPLATE, CHECKIN_DATA, cookie)
+    r = request(CHECKIN_URL, "POST", CHECKIN_DATA, cookie)
     if r:
         j = r.json()
         msg = j.get("message", "")
         points = str(j.get("points", 0))
         if "Got" in msg:
-            status = f"签到成功"
+            status = "签到成功"
         elif "Repeats" in msg:
             status = "重复签到，明天再来"
             points = "0"
-        else:
-            status = f"签到失败"
 
-    r = make_request(STATUS_URL, "GET", HEADERS_TEMPLATE, cookie=cookie)
+    r = request(STATUS_URL, cookie=cookie)
     if r:
         try:
             days = f"{int(float(r.json()['data']['leftDays']))} 天"
         except:
             pass
 
-    r = make_request(POINTS_URL, "GET", HEADERS_TEMPLATE, cookie=cookie)
     current_points = 0
+    r = request(POINTS_URL, cookie=cookie)
     if r:
         try:
             current_points = int(float(r.json().get("points", 0)))
-            total_points = f"{current_points} 积分"
+            total = f"{current_points} 积分"
         except:
             pass
 
     if do_exchange:
         need = EXCHANGE_POINTS.get(exchange_plan, 500)
         if current_points >= need:
-            r = make_request(EXCHANGE_URL, "POST", HEADERS_TEMPLATE,
-                             {"planType": exchange_plan}, cookie)
+            r = request(EXCHANGE_URL, "POST",
+                        {"planType": exchange_plan}, cookie)
             if r and r.json().get("code") == 0:
                 exchange = f"兑换成功：{exchange_plan}"
             else:
@@ -136,18 +143,38 @@ def process_account(account, exchange_plan, do_exchange):
         else:
             exchange = f"积分不足，未兑换：{exchange_plan}"
 
-    return status, points, days, total_points, exchange
+    return {
+        "email": acc["email"],
+        "status": status,
+        "points": points,
+        "days": days,
+        "total": total,
+        "exchange": exchange
+    }
 
-# ================== 推送格式 ==================
+# ================== 消息格式（重点） ==================
 def format_message(results):
     title = f"GLaDOS 签到结果（{len(results)} 账号）"
-    lines = []
-    for i, r in enumerate(results, 1):
-        lines.append(
-            f"📧 {r['email']} | P:{r['points']} 剩余天数:{r['days']} "
-            f"总积分:{r['total']} | {r['status']}; {r['exchange']}"
+    blocks = []
+
+    for r in results:
+        total_num = 0
+        try:
+            total_num = int(r["total"].replace("积分", "").strip())
+        except:
+            pass
+
+        mark = " ✅" if total_num >= 500 else ""
+
+        block = (
+            f"📧 {r['email']}\n"
+            f"【总积分:{r['total']}】{mark}\n"
+            f"P:{r['points']} 剩余天数:{r['days']}\n"
+            f"{r['status']}; {r['exchange']}"
         )
-    return title, "\n".join(lines)
+        blocks.append(block)
+
+    return title, "\n\n".join(blocks)
 
 # ================== TG ==================
 def send_tg(token, chat_id, text):
@@ -164,17 +191,7 @@ def main():
     results = []
 
     for acc in accounts:
-        status, points, days, total, exchange = process_account(
-            acc, exchange_plan, enable_exchange
-        )
-        results.append({
-            "email": acc["email"],
-            "status": status,
-            "points": points,
-            "days": days,
-            "total": total,
-            "exchange": exchange
-        })
+        results.append(process_account(acc, exchange_plan, enable_exchange))
 
     title, content = format_message(results)
 
