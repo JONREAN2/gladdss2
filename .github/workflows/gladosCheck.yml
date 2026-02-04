@@ -8,7 +8,7 @@ on:
       - 'README.md'
       - 'imgs/'
   schedule:
-    - cron: '10 4,15 * * *'
+    - cron: '01 15,16 * * *'  # 每天 04:00 和 10:00 UTC
   watch:
     types: started
 
@@ -16,36 +16,37 @@ jobs:
   build:
     name: glados checkin
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8]
 
     steps:
+    # 1️⃣ Checkout 仓库
     - uses: actions/checkout@v4
 
-    - name: set up python
-      uses: actions/setup-python@v4
+    # 2️⃣ Setup Python
+    - name: set up python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
       with:
-        python-version: '3.8'
+        python-version: ${{ matrix.python-version }}
 
-    # 安装依赖
+    # 3️⃣ 安装依赖
     - name: install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install requests pypushdeer
 
-    # 运行脚本
-    - name: running glados checkin
+    # 4️⃣ 执行签到脚本
+    - name: running checkin
       run: |
         python glados_notify.py
       env:
-        # ========= 推送 =========
         PUSHDEER_SENDKEY: ${{ secrets.PUSHDEER_SENDKEY }}
         TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
         TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
-
-        # ========= 兑换配置（只对第一个账号生效） =========
         GLADOS_EXCHANGE_PLAN: plan500
         GLADOS_ENABLE_EXCHANGE: "false" 
 
-        # ========= GLaDOS 多账号 =========
         GLADOS_EMAILS_1: ${{ secrets.GLADOS_EMAILS_1 }}
         GLADOS_COOKIES_1: ${{ secrets.GLADOS_COOKIES_1 }}
 
@@ -54,12 +55,12 @@ jobs:
 
         GLADOS_EMAILS_3: ${{ secrets.GLADOS_EMAILS_3 }}
         GLADOS_COOKIES_3: ${{ secrets.GLADOS_COOKIES_3 }}
+        
+    # 5️⃣ 保持 workflow 活跃
+    - name: keep alive
+      uses: liskin/gh-workflow-keepalive@v1
 
-        # 需要几个账号就继续往下加
-
-
-
-    # 清理历史 workflow
+    # 6️⃣ 删除旧 workflow
     - name: delete workflow runs
       uses: Mattraks/delete-workflow-runs@v2
       with:
