@@ -59,6 +59,27 @@ jobs:
 
         GLADOS_EMAILS_3: ${{ secrets.GLADOS_EMAILS_3 }}
         GLADOS_COOKIES_3: ${{ secrets.GLADOS_COOKIES_3 }}
+
+        GLADOS_EMAILS_4: ${{ secrets.GLADOS_EMAILS_4 }}
+        GLADOS_COOKIES_4: ${{ secrets.GLADOS_COOKIES_4 }}
+
+        GLADOS_EMAILS_5: ${{ secrets.GLADOS_EMAILS_5 }}
+        GLADOS_COOKIES_5: ${{ secrets.GLADOS_COOKIES_5 }}
+
+        GLADOS_EMAILS_6: ${{ secrets.GLADOS_EMAILS_6 }}
+        GLADOS_COOKIES_6: ${{ secrets.GLADOS_COOKIES_6 }}
+
+        GLADOS_EMAILS_7: ${{ secrets.GLADOS_EMAILS_7 }}
+        GLADOS_COOKIES_7: ${{ secrets.GLADOS_COOKIES_7 }}
+
+        GLADOS_EMAILS_8: ${{ secrets.GLADOS_EMAILS_8 }}
+        GLADOS_COOKIES_8: ${{ secrets.GLADOS_COOKIES_8 }}
+
+        GLADOS_EMAILS_9: ${{ secrets.GLADOS_EMAILS_9 }}
+        GLADOS_COOKIES_9: ${{ secrets.GLADOS_COOKIES_9 }}
+
+        GLADOS_EMAILS_10: ${{ secrets.GLADOS_EMAILS_10 }}
+        GLADOS_COOKIES_10: ${{ secrets.GLADOS_COOKIES_10 }}
         
     # 5️⃣ 保持 workflow 活跃
     - name: keep alive
