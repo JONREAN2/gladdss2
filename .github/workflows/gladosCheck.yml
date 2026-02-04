@@ -12,6 +12,10 @@ on:
   watch:
     types: started
 
+permissions:
+  actions: write
+  contents: read
+
 jobs:
   build:
     name: glados checkin
