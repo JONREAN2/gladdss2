@@ -12,8 +12,10 @@ def beijing_time_converter(timestamp):
     bj_tz = datetime.timezone(datetime.timedelta(hours=8))
     return utc_dt.astimezone(bj_tz).timetuple()
 
-logging.basicConfig(level=logging.INFO,
-                    format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 for h in logging.getLogger().handlers:
     if h.formatter:
         h.formatter.converter = beijing_time_converter
@@ -76,7 +78,7 @@ def load_config():
     accounts = load_accounts()
 
     logger.info(f"加载账号数量: {len(accounts)}")
-    logger.info(f"兑换开关: {'开启' if enable_exchange else '关闭'}")
+    logger.info(f"兑换功能: {'开启' if enable_exchange else '关闭'}")
 
     return push_key, exchange_plan, tg_token, tg_chat_id, accounts, enable_exchange
 
@@ -100,9 +102,7 @@ def process_account(acc, exchange_plan, do_exchange):
 
     status = "签到失败"
     points = "0"
-    days = "-"
-    total = "-"
-    exchange = "未执行兑换"
+    total = "0 积分"
 
     r = request(CHECKIN_URL, "POST", CHECKIN_DATA, cookie)
     if r:
@@ -115,13 +115,6 @@ def process_account(acc, exchange_plan, do_exchange):
             status = "重复签到，明天再来"
             points = "0"
 
-    r = request(STATUS_URL, cookie=cookie)
-    if r:
-        try:
-            days = f"{int(float(r.json()['data']['leftDays']))} 天"
-        except:
-            pass
-
     current_points = 0
     r = request(POINTS_URL, cookie=cookie)
     if r:
@@ -131,58 +124,46 @@ def process_account(acc, exchange_plan, do_exchange):
         except:
             pass
 
-    if do_exchange:
-        need = EXCHANGE_POINTS.get(exchange_plan, 500)
-        if current_points >= need:
-            r = request(EXCHANGE_URL, "POST",
-                        {"planType": exchange_plan}, cookie)
-            if r and r.json().get("code") == 0:
-                exchange = f"兑换成功：{exchange_plan}"
-            else:
-                exchange = f"兑换失败：{exchange_plan}"
-        else:
-            exchange = f"积分不足，未兑换：{exchange_plan}"
-
     return {
         "email": acc["email"],
         "status": status,
         "points": points,
-        "days": days,
         "total": total,
-        "exchange": exchange
+        "total_num": current_points
     }
 
-# ================== 消息格式（重点） ==================
+# ================== 排序 ==================
+def sort_by_total_points(results):
+    return sorted(results, key=lambda x: x.get("total_num", 0), reverse=True)
+
+# ================== 消息格式 ==================
 def format_message(results):
+    results = sort_by_total_points(results)
+
     title = f"GLaDOS 签到结果（{len(results)} 账号）"
     blocks = []
 
     for r in results:
-        total_num = 0
-        try:
-            total_num = int(r["total"].replace("积分", "").strip())
-        except:
-            pass
-
-        mark = " ✅" if total_num >= 500 else ""
-
+        mark = " ✅" if r["total_num"] >= 500 else ""
         block = (
             f"📧 {r['email']}\n"
             f"【总积分:{r['total']}】{mark}\n"
-            f"P:{r['points']} 剩余天数:{r['days']}\n"
-            f"{r['status']}; {r['exchange']}"
+            f"P:{r['points']}  {r['status']}"
         )
         blocks.append(block)
 
     return title, "\n\n".join(blocks)
 
-# ================== TG ==================
+# ================== Telegram ==================
 def send_tg(token, chat_id, text):
     if not token or not chat_id:
         return
     requests.post(
         f"https://api.telegram.org/bot{token}/sendMessage",
-        json={"chat_id": chat_id, "text": text}
+        json={
+            "chat_id": chat_id,
+            "text": text
+        }
     )
 
 # ================== MAIN ==================
