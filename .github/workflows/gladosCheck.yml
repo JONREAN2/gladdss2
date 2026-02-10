@@ -9,7 +9,6 @@ on:
       - 'imgs/'
   schedule:
     - cron: '35 15 * * *'  # 每天 04:00 和 10:00 UTC
-    - cron: '01 16 * * *'  # 每天 04:00 和 10:00 UTC
   watch:
     types: started
 
