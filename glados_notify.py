@@ -34,7 +34,6 @@ EXCHANGE_PLAN = "plan500"
 
 # ================== API ==================
 CHECKIN_URL = "https://glados.cloud/api/user/checkin"
-STATUS_URL = "https://glados.cloud/api/user/status"
 POINTS_URL = "https://glados.cloud/api/user/points"
 EXCHANGE_URL = "https://glados.cloud/api/user/exchange"
 
@@ -123,7 +122,7 @@ def process_account(acc, do_exchange=False):
     total = "0 积分"
     exchange_status = "未执行兑换"
 
-    # 签到
+    # ================== 签到 ==================
     r = request(CHECKIN_URL, "POST", CHECKIN_DATA, cookie)
 
     if r:
@@ -146,7 +145,7 @@ def process_account(acc, do_exchange=False):
         except Exception:
             status = "签到解析失败"
 
-    # 查询积分
+    # ================== 查询积分 ==================
     current_points = 0
 
     r = request(POINTS_URL, cookie=cookie)
@@ -316,4 +315,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-```
