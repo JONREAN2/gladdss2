@@ -29,7 +29,7 @@ ENV_TG_TOKEN = "TG_BOT_TOKEN"
 ENV_TG_CHAT_ID = "TG_CHAT_ID"
 
 # ================== 写死兑换配置 ==================
-ENABLE_EXCHANGE = True
+ENABLE_EXCHANGE = False
 EXCHANGE_PLAN = "plan500"
 
 # ================== API ==================
